@@ -25,4 +25,4 @@ pip install -r requirements.txt
 python dqn_cartpole.py
 ```
 
-完整实验说明见 `reports/REPORT.md`。
+完整实验说明见 `reports/report.md`。
