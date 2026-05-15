@@ -8,6 +8,7 @@ import random
 import time
 from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
@@ -15,6 +16,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = PROJECT_ROOT / "outputs"
+FIGURE_DIR = OUTPUT_DIR / "figures"
+MODEL_DIR = OUTPUT_DIR / "models"
+LOG_DIR = OUTPUT_DIR / "logs"
 
 # ────────────────────────────── 超参数 ──────────────────────────────
 
@@ -36,7 +43,7 @@ class Config:
     plot_window: int = 20             # 滑动平均窗口
     test_episodes: int = 3
     seed: int = 42
-    log_csv: str = "outputs/training_log.csv"
+    log_csv: Path = LOG_DIR / "training_log.csv"
 
 # ────────────────────────────── 经验回放池 ──────────────────────────
 
@@ -149,6 +156,9 @@ def moving_average(data: list[float], window: int) -> np.ndarray:
 # ────────────────────────────── 训练主循环 ──────────────────────────
 
 def train(cfg: Config, device: torch.device):
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
     random.seed(cfg.seed)
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -172,7 +182,7 @@ def train(cfg: Config, device: torch.device):
     episode_losses: list[float] = []
     global_step = 0
     best_mean50 = -float("inf")
-    best_ckpt = "outputs/dqn_cartpole_policy.pt"
+    best_ckpt = MODEL_DIR / "dqn_cartpole_policy.pt"
 
     for ep in range(cfg.num_episodes):
         state, _ = env.reset(seed=cfg.seed + ep)
@@ -239,6 +249,8 @@ def train(cfg: Config, device: torch.device):
 
 def plot_curves(rewards: list[float], success: list[float],
                 losses: list[float], threshold: float, window: int) -> None:
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+
     episodes = np.arange(1, len(rewards) + 1)
     ma_r = moving_average(rewards, window)
     ma_s = moving_average(success, window)
@@ -256,7 +268,7 @@ def plot_curves(rewards: list[float], success: list[float],
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     fig1.tight_layout()
-    fig1.savefig("assets/reward_curve.png", dpi=150)
+    fig1.savefig(FIGURE_DIR / "reward_curve.png", dpi=150)
 
     # ---- 成功率曲线 ----
     fig2, ax2 = plt.subplots(figsize=(8, 4))
@@ -271,7 +283,7 @@ def plot_curves(rewards: list[float], success: list[float],
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     fig2.tight_layout()
-    fig2.savefig("assets/success_rate.png", dpi=150)
+    fig2.savefig(FIGURE_DIR / "success_rate.png", dpi=150)
 
     # ---- Loss 曲线 ----
     losses_arr = np.array(losses, dtype=float)
@@ -289,7 +301,7 @@ def plot_curves(rewards: list[float], success: list[float],
         ax3.legend()
         ax3.grid(True, alpha=0.3)
         fig3.tight_layout()
-        fig3.savefig("assets/loss_curve.png", dpi=150)
+        fig3.savefig(FIGURE_DIR / "loss_curve.png", dpi=150)
 
     plt.show()
 
@@ -353,10 +365,10 @@ def main() -> None:
           f"{np.mean(rewards[-10:]):.1f}  (threshold={threshold})")
 
     plot_curves(rewards, success, losses, threshold, cfg.plot_window)
-    print("Saved assets/reward_curve.png, assets/success_rate.png, assets/loss_curve.png")
-    print("Saved outputs/training_log.csv")
+    print("Saved outputs/figures/reward_curve.png, outputs/figures/success_rate.png, outputs/figures/loss_curve.png")
+    print("Saved outputs/logs/training_log.csv")
 
-    print("Best checkpoint already saved as outputs/dqn_cartpole_policy.pt")
+    print("Best checkpoint already saved as outputs/models/dqn_cartpole_policy.pt")
 
     test_render(policy_net, device, cfg.test_episodes, cfg.seed)
 
